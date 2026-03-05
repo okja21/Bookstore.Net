@@ -11,16 +11,15 @@ namespace Book_Store
     using System.Web.UI;
     using System.Web.UI.WebControls;
     using System.Web.UI.HtmlControls;
+    using System.Security.Cryptography;
+    using System.Text;
 
     public partial class Login : System.Web.UI.Page
     {
-        // Login CustomIncludes begin
         protected CCUtility Utility;
 
-        // Login form variables and controls
         protected System.Web.UI.HtmlControls.HtmlInputHidden Login_querystring;
         protected System.Web.UI.HtmlControls.HtmlInputHidden Login_ret_page;
-
         protected string Login_FormAction = "ShoppingCart.aspx?";
 
         public Login()
@@ -28,23 +27,6 @@ namespace Book_Store
             this.Init += new System.EventHandler(Page_Init);
         }
 
-        // Login CustomIncludes end
-        //-------------------------------
-
-        public void ValidateNumeric(object source, ServerValidateEventArgs args)
-        {
-            try
-            {
-                Decimal temp = Decimal.Parse(args.Value);
-                args.IsValid = true;
-            }
-            catch
-            {
-                args.IsValid = false;
-            }
-        }
-
-        //===============================
         protected void Page_Load(object sender, EventArgs e)
         {
             Utility = new CCUtility(this);
@@ -53,9 +35,7 @@ namespace Book_Store
                 Login_logged = true;
 
             if (!IsPostBack)
-            {
                 Page_Show(sender, e);
-            }
         }
 
         protected void Page_Unload(object sender, EventArgs e)
@@ -69,16 +49,13 @@ namespace Book_Store
             Login_login.Click += new System.EventHandler(this.Login_login_Click);
         }
 
-        private void InitializeComponent()
-        {
-        }
+        private void InitializeComponent() { }
 
         protected void Page_Show(object sender, EventArgs e)
         {
             Login_Show();
         }
 
-        //===============================
         protected bool Login_logged = false;
 
         void Login_Show()
@@ -90,7 +67,6 @@ namespace Book_Store
                 Login_trname.Visible = false;
                 Login_labelname.Visible = true;
 
-                // Safe Dlookup call
                 string memberName = Utility.DlookupSafe("members", "member_login", "member_id", Session["UserID"]);
                 Login_labelname.Text = memberName + "&nbsp;&nbsp;&nbsp;";
             }
@@ -115,51 +91,63 @@ namespace Book_Store
             }
             else
             {
-                // Login safely
                 string loginName = Login_name.Text;
-                string password = Login_password.Text;
+                string password = Login_password.Text; // plaintext input
 
-                // Check if member exists
-                int iPassed = Convert.ToInt32(Utility.DlookupSafe("members", "count(*)", "member_login", loginName));
-
-                if (iPassed > 0)
+                try
                 {
-                    // Verify password
-                    string dbPassword = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
-                    if (dbPassword != password)
-                        iPassed = 0;
-                }
+                    int iPassed = Convert.ToInt32(
+                        Utility.DlookupSafe("members", "count(*)", "member_login", loginName)
+                    );
 
-                if (iPassed > 0)
-                {
-                    Login_message.Visible = false;
-
-                    // Get safe member ID and rights
-                    Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
-                    Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
-
-                    string sQueryString = Utility.GetParam("querystring");
-                    string sPage = Utility.GetParam("ret_page");
-                    if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
+                    if (iPassed > 0)
                     {
-                        Response.Redirect(sPage + "?" + sQueryString);
+                        // Fetch hashed password from DB
+                        string dbPasswordHash = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
+
+                        // Compute hash of entered password
+                        string passwordHash = CCUtility.ComputeHash(password);
+
+                        // Compare hashes
+                        if (dbPasswordHash != passwordHash)
+                            iPassed = 0;
+
+                        // Clear sensitive variables
+                        dbPasswordHash = null;
+                        passwordHash = null;
+                    }
+
+                    if (iPassed > 0)
+                    {
+                        Login_message.Visible = false;
+
+                        Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
+                        Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
+
+                        string sQueryString = Utility.GetParam("querystring");
+                        string sPage = Utility.GetParam("ret_page");
+                        if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
+                            Response.Redirect(sPage + "?" + sQueryString);
+                        else
+                            Response.Redirect(Login_FormAction);
+
+                        Login_logged = true;
                     }
                     else
                     {
-                        Response.Redirect(Login_FormAction);
+                        Login_message.Visible = true;
                     }
-                    Login_logged = true;
                 }
-                else
+                finally
                 {
-                    Login_message.Visible = true;
+                    // Clear plaintext password immediately
+                    password = null;
                 }
             }
         }
     }
 
     //===============================
-    // Safe Dlookup method added to CCUtility
     public partial class CCUtility
     {
         public string DlookupSafe(string table, string field, string whereColumn, object whereValue)
@@ -180,11 +168,20 @@ namespace Book_Store
                 using (OleDbDataReader reader = command.ExecuteReader(CommandBehavior.SingleRow))
                 {
                     if (reader.Read())
-                    {
                         return reader[0]?.ToString() ?? "";
-                    }
                     return "";
                 }
+            }
+        }
+
+        // Computes SHA256 hash of a string
+        public static string ComputeHash(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hash = sha256.ComputeHash(bytes);
+                return BitConverter.ToString(hash).Replace("-", "").ToLower();
             }
         }
     }
