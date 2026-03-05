@@ -591,9 +591,25 @@ string sSQL = "UPDATE items SET rating = rating + ?, rating_count = rating_count
 // Create the OleDbCommand with the SQL query and the connection
 OleDbCommand cmd = new OleDbCommand(sSQL, Utility.Connection);
 
-// Add parameters for the Rating and ItemId
-cmd.Parameters.AddWithValue("?", Rating_rating.SelectedItem.Value);
-cmd.Parameters.AddWithValue("?", Rating_item_id.Value);
+// Validate the Rating input
+if (!int.TryParse(Rating_rating.SelectedItem.Value, out int ratingValue) || ratingValue < 1 || ratingValue > 5)
+{
+    Rating_ValidationSummary.Text += "Invalid rating value.";
+    Rating_ValidationSummary.Visible = true;
+    return false;
+}
+
+// Validate the ItemId input
+if (!int.TryParse(Rating_item_id.Value, out int itemId) || itemId <= 0)
+{
+    Rating_ValidationSummary.Text += "Invalid Item ID.";
+    Rating_ValidationSummary.Visible = true;
+    return false;
+}
+
+// Add parameters for the Rating and ItemId (same structure as before)
+cmd.Parameters.AddWithValue("?", ratingValue);
+cmd.Parameters.AddWithValue("?", itemId);
 
 try
 {
@@ -603,7 +619,7 @@ try
 catch (Exception e)
 {
     // Handle exceptions
-    Rating_ValidationSummary.Text += e.Message;
+    Rating_ValidationSummary.Text += HttpUtility.HtmlEncode(e.Message); // prevent XSS
     Rating_ValidationSummary.Visible = true;
     return false;
 }
