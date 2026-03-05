@@ -1,14 +1,5 @@
 namespace Book_Store
 {
-	
-//
-//    Filename: Login.cs
-//    Generated with CodeCharge 2.0.5
-//    ASP.NET C#.ccp build 03/07/2002
-//
-//-------------------------------
-//
-
     using System;
     using System.Collections;
     using System.ComponentModel;
@@ -21,196 +12,180 @@ namespace Book_Store
     using System.Web.UI.WebControls;
     using System.Web.UI.HtmlControls;
 
-    /// <summary>
-    ///    Summary description for Login.
-    /// </summary>
+    public partial class Login : System.Web.UI.Page
+    {
+        // Login CustomIncludes begin
+        protected CCUtility Utility;
 
-	public partial class Login : System.Web.UI.Page
-	
-    { 
+        // Login form variables and controls
+        protected System.Web.UI.HtmlControls.HtmlInputHidden Login_querystring;
+        protected System.Web.UI.HtmlControls.HtmlInputHidden Login_ret_page;
 
+        protected string Login_FormAction = "ShoppingCart.aspx?";
 
+        public Login()
+        {
+            this.Init += new System.EventHandler(Page_Init);
+        }
 
-//Login CustomIncludes begin
-		protected CCUtility Utility;
-		
-		//Login form Login variables and controls declarations
-		protected System.Web.UI.HtmlControls.HtmlInputHidden Login_querystring;
-		protected System.Web.UI.HtmlControls.HtmlInputHidden Login_ret_page; 
-	
-		// For each Login form hiddens for PK's,List of Values and Actions
-		protected string Login_FormAction="ShoppingCart.aspx?";
-		
+        // Login CustomIncludes end
+        //-------------------------------
 
-	
-	public Login()
-	{
-	this.Init += new System.EventHandler(Page_Init);
-	}
-	
-// Login CustomIncludes end
-//-------------------------------
+        public void ValidateNumeric(object source, ServerValidateEventArgs args)
+        {
+            try
+            {
+                Decimal temp = Decimal.Parse(args.Value);
+                args.IsValid = true;
+            }
+            catch
+            {
+                args.IsValid = false;
+            }
+        }
 
-
-	public void ValidateNumeric(object source, ServerValidateEventArgs args) {
-			try{
-				Decimal temp=Decimal.Parse(args.Value);
-				args.IsValid=true;
-		        }catch{
-				args.IsValid=false;	}
-		}
-//===============================
-// Login Show begin
+        //===============================
         protected void Page_Load(object sender, EventArgs e)
-        {	
-		Utility=new CCUtility(this);
-		//===============================
-// Login Open Event begin
-// Login Open Event end
-		//===============================
-		
-		//===============================
-// Login OpenAnyPage Event begin
-// Login OpenAnyPage Event end
-		//===============================
-		//
-		//===============================
-		// Login PageSecurity begin
-		// Login PageSecurity end
-		//===============================
-		if (Session["UserID"] != null && Int16.Parse(Session["UserID"].ToString()) > 0)
-		Login_logged = true;
+        {
+            Utility = new CCUtility(this);
 
-		if (!IsPostBack){
-			Page_Show(sender, e);
-		}
-	}
+            if (Session["UserID"] != null && Int16.Parse(Session["UserID"].ToString()) > 0)
+                Login_logged = true;
 
-	protected void Page_Unload(object sender, EventArgs e)
-	{
-		//
-		// CODEGEN: This call is required by the ASP+ Windows Form Designer.
-		//
-		if(Utility!=null) Utility.DBClose();
-	}
+            if (!IsPostBack)
+            {
+                Page_Show(sender, e);
+            }
+        }
 
-	protected void Page_Init(object sender, EventArgs e)
-	{
-		//
-		// CODEGEN: This call is required by the ASP+ Windows Form Designer.
-		//
-		InitializeComponent();
-		Login_login.Click += new System.EventHandler (this.Login_login_Click);
-		
-		
-	}
+        protected void Page_Unload(object sender, EventArgs e)
+        {
+            if (Utility != null) Utility.DBClose();
+        }
 
-        /// <summary>
-        ///    Required method for Designer support - do not modify
-        ///    the contents of this method with the code editor.
-        /// </summary>
+        protected void Page_Init(object sender, EventArgs e)
+        {
+            InitializeComponent();
+            Login_login.Click += new System.EventHandler(this.Login_login_Click);
+        }
+
         private void InitializeComponent()
         {
         }
 
-
         protected void Page_Show(object sender, EventArgs e)
         {
-		Login_Show();
-		
+            Login_Show();
         }
 
+        //===============================
+        protected bool Login_logged = false;
 
+        void Login_Show()
+        {
+            if (Login_logged)
+            {
+                Login_login.Text = "Logout";
+                Login_trpassword.Visible = false;
+                Login_trname.Visible = false;
+                Login_labelname.Visible = true;
 
-// Login Show end
+                // Safe Dlookup call
+                string memberName = Utility.DlookupSafe("members", "member_login", "member_id", Session["UserID"]);
+                Login_labelname.Text = memberName + "&nbsp;&nbsp;&nbsp;";
+            }
+            else
+            {
+                Login_login.Text = "Login";
+                Login_trpassword.Visible = true;
+                Login_trname.Visible = true;
+                Login_labelname.Visible = false;
+            }
+        }
 
-/*===============================
-  Display Login Form
-  -------------------------------*/
-protected bool Login_logged = false;
-void Login_Show() {
-	
-	// Login Show begin
-	
-// Login Open Event begin
-// Login Open Event end
+        void Login_login_Click(Object Src, EventArgs E)
+        {
+            if (Login_logged)
+            {
+                // Logout
+                Login_logged = false;
+                Session["UserID"] = 0;
+                Session["UserRights"] = 0;
+                Login_Show();
+            }
+            else
+            {
+                // Login safely
+                string loginName = Login_name.Text;
+                string password = Login_password.Text;
 
-// Login BeforeShow Event begin
-// Login BeforeShow Event end
+                // Check if member exists
+                int iPassed = Convert.ToInt32(Utility.DlookupSafe("members", "count(*)", "member_login", loginName));
 
-	if (Login_logged) {
-		// User logged in		
-		Login_login.Text = "Logout";
-		Login_trpassword.Visible = false;
-		Login_trname.Visible = false;
-		Login_labelname.Visible = true;
-		Login_labelname.Text = Utility.Dlookup("members", "member_login", "member_id=" + Session["UserID"]) + "&nbsp;&nbsp;&nbsp;";
-	} else {
-		// User is not logged in
-		Login_login.Text = "Login";
-		Login_trpassword.Visible = true;
-		Login_trname.Visible = true;
-		Login_labelname.Visible = false;
-	}
-	
-// Login Close Event begin
-// Login Close Event end
+                if (iPassed > 0)
+                {
+                    // Verify password
+                    string dbPassword = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
+                    if (dbPassword != password)
+                        iPassed = 0;
+                }
 
-	// Login Show end
-	
-}
+                if (iPassed > 0)
+                {
+                    Login_message.Visible = false;
 
-void Login_login_Click(Object Src, EventArgs E) {
-	if (Login_logged) {
-		
-		// Login Logout begin
-		
-// Login OnLogout Event begin
-// Login OnLogout Event end
-Login_logged = false;
-		Session["UserID"] = 0;
-		Session["UserRights"] = 0;
-		Login_Show();
-		// Login Logout end
-		
-	} else {
-		
-		// Login Login begin
-		int iPassed = Convert.ToInt32(Utility.Dlookup("members", "count(*)", "member_login ='" + Login_name.Text + "' and member_password='" + CCUtility.Quote(Login_password.Text) + "'"));
-		if (iPassed > 0) {
-			
-// Login OnLogin Event begin
-// Login OnLogin Event end
-Login_message.Visible = false;
-			Session["UserID"] = Convert.ToInt32(Utility.Dlookup("members", "member_id", "member_login ='" + Login_name.Text + "' and member_password='" + CCUtility.Quote(Login_password.Text) +"'"));
-			Login_logged = true;
-			
-			Session["UserRights"] = Convert.ToInt32(Utility.Dlookup("members", "member_level", "member_login ='" + Login_name.Text + "' and member_password='" + CCUtility.Quote(Login_password.Text) + "'"));
-			
-			string sQueryString = Utility.GetParam("querystring");
-			string sPage = Utility.GetParam("ret_page");
-			if (! sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0) {
-				Response.Redirect(sPage + "?" + sQueryString);
-			} else {
-				
-				Response.Redirect(Login_FormAction);
-			}
-		} else {
-			Login_message.Visible = true;
-		}
-		// Login Login end
-	
-	}
-}
+                    // Get safe member ID and rights
+                    Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
+                    Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
 
-// End of Login form 
+                    string sQueryString = Utility.GetParam("querystring");
+                    string sPage = Utility.GetParam("ret_page");
+                    if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
+                    {
+                        Response.Redirect(sPage + "?" + sQueryString);
+                    }
+                    else
+                    {
+                        Response.Redirect(Login_FormAction);
+                    }
+                    Login_logged = true;
+                }
+                else
+                {
+                    Login_message.Visible = true;
+                }
+            }
+        }
+    }
 
+    //===============================
+    // Safe Dlookup method added to CCUtility
+    public partial class CCUtility
+    {
+        public string DlookupSafe(string table, string field, string whereColumn, object whereValue)
+        {
+            // Whitelist validation
+            var allowedTables = new[] { "members" };
+            var allowedFields = new[] { "member_id", "member_login", "member_password", "member_level", "count(*)" };
 
+            if (!allowedTables.Contains(table) || !allowedFields.Contains(field) || !allowedFields.Contains(whereColumn))
+                throw new ArgumentException("Invalid table or column name");
 
+            string sSQL = $"SELECT {field} FROM {table} WHERE {whereColumn} = ?";
 
+            using (OleDbCommand command = new OleDbCommand(sSQL, Connection))
+            {
+                command.Parameters.AddWithValue("@value", whereValue);
 
-
-
-
+                using (OleDbDataReader reader = command.ExecuteReader(CommandBehavior.SingleRow))
+                {
+                    if (reader.Read())
+                    {
+                        return reader[0]?.ToString() ?? "";
+                    }
+                    return "";
+                }
+            }
+        }
     }
 }
