@@ -67,8 +67,9 @@ namespace Book_Store
                 Login_trname.Visible = false;
                 Login_labelname.Visible = true;
 
+                // Ensure we HTML encode the member name to prevent XSS
                 string memberName = Utility.DlookupSafe("members", "member_login", "member_id", Session["UserID"]);
-                Login_labelname.Text = memberName + "&nbsp;&nbsp;&nbsp;";
+                Login_labelname.Text = HttpUtility.HtmlEncode(memberName) + "&nbsp;&nbsp;&nbsp;";
             }
             else
             {
