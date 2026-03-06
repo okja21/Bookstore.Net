@@ -141,96 +141,88 @@ namespace Book_Store
             }
         }
 
-         ICollection Members_CreateDataSource()
-        {
+ICollection Members_CreateDataSource()
+{
+    string nameParam = Utility.GetParam("name") ?? "";
+    string sOrder = " ORDER BY m.member_login ASC";
+    string sWhere = "";
 
-            Members_sSQL = "";
-            Members_sCountSQL = "";
+    Members_sSQL = "";
+    Members_sCountSQL = "";
 
-            string sWhere = "";
-            string sOrder = " order by m.member_login Asc";
+    bool hasParam = !string.IsNullOrEmpty(nameParam);
 
-            bool HasParam = false;
-
-            string nameParam = Utility.GetParam("name");
-
-            if (nameParam == null)
-                nameParam = "";
-
-            // Prevent SQL injection & XSS reflection
-            nameParam = nameParam.Replace("'", "''");
-
-            if (nameParam.Length > 0)
-            {
-                HasParam = true;
-
-                sWhere =
-                    "m.[member_login] like '%" + nameParam + "%'" +
-                    " or m.[first_name] like '%" + nameParam + "%'" +
-                    " or m.[last_name] like '%" + nameParam + "%'";
-            }
-
-            if (HasParam)
-                sWhere = " WHERE (" + sWhere + ")";
-
-            Members_sSQL =
-                "select [m].[first_name] as m_first_name, " +
-                "[m].[last_name] as m_last_name, " +
-                "[m].[member_id] as m_member_id, " +
-                "[m].[member_level] as m_member_level, " +
-                "[m].[member_login] as m_member_login " +
-                " from [members] m ";
-
-            Members_sSQL = Members_sSQL + sWhere + sOrder;
-
-            if (Members_sCountSQL.Length == 0)
-            {
-                int iTmpI = Members_sSQL.ToLower().IndexOf("select ");
-                int iTmpJ = Members_sSQL.ToLower().LastIndexOf(" from ") - 1;
-
-                Members_sCountSQL = Members_sSQL.Replace(
-                    Members_sSQL.Substring(iTmpI + 7, iTmpJ - 6),
-                    " count(*) "
-                );
-
-                iTmpI = Members_sCountSQL.ToLower().IndexOf(" order by");
-
-                if (iTmpI > 1)
-                    Members_sCountSQL = Members_sCountSQL.Substring(0, iTmpI);
-            }
-            
-    OleDbDataAdapter command = new OleDbDataAdapter(Members_sSQL, Utility.Connection);
-    DataSet ds = new DataSet();
-
-    command.Fill(
-        ds,
-        (i_Members_curpage - 1) * Members_PAGENUM,
-        Members_PAGENUM,
-        "Members"
-    );
-
-    // Sanitize data for Stored XSS ---
-    foreach (DataRow row in ds.Tables["Members"].Rows)
+    if (hasParam)
     {
-        // Encode any field that might contain user-generated scripts
-        row["m_first_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_first_name"].ToString());
-        row["m_last_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_last_name"].ToString());
-        row["m_member_login"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_member_login"].ToString());
+        sWhere = " WHERE (m.member_login LIKE ? OR m.first_name LIKE ? OR m.last_name LIKE ?)";
     }
 
-    OleDbCommand ccommand = new OleDbCommand(Members_sCountSQL, Utility.Connection);
-    int PageTemp = (int)ccommand.ExecuteScalar();
+    Members_sSQL =
+        "SELECT m.first_name AS m_first_name, " +
+        "m.last_name AS m_last_name, " +
+        "m.member_id AS m_member_id, " +
+        "m.member_level AS m_member_level, " +
+        "m.member_login AS m_member_login " +
+        "FROM members m " +
+        sWhere + sOrder;
 
-  Members_Pager.MaxPage =
-                (PageTemp % Members_PAGENUM) > 0
-                ? (PageTemp / Members_PAGENUM) + 1
-                : (PageTemp / Members_PAGENUM);
+    Members_sCountSQL =
+        "SELECT COUNT(*) FROM members m " + sWhere;
 
-            bool AllowScroller = Members_Pager.MaxPage > 1;
+    DataSet ds = new DataSet();
 
+    using (OleDbDataAdapter adapter = new OleDbDataAdapter(Members_sSQL, Utility.Connection))
+    {
+        if (hasParam)
+        {
+            string likeParam = "%" + nameParam + "%";
 
-    DataView Source = new DataView(ds.Tables[0]);
-    return Source;
+            adapter.SelectCommand.Parameters.AddWithValue("@p1", likeParam);
+            adapter.SelectCommand.Parameters.AddWithValue("@p2", likeParam);
+            adapter.SelectCommand.Parameters.AddWithValue("@p3", likeParam);
+        }
+
+        adapter.Fill(
+            ds,
+            (i_Members_curpage - 1) * Members_PAGENUM,
+            Members_PAGENUM,
+            "Members"
+        );
+    }
+
+    // --- Stored XSS protection ---
+    foreach (DataRow row in ds.Tables["Members"].Rows)
+    {
+        row["m_first_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_first_name"]?.ToString() ?? "");
+        row["m_last_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_last_name"]?.ToString() ?? "");
+        row["m_member_login"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_member_login"]?.ToString() ?? "");
+    }
+
+    int totalRecords = 0;
+
+    using (OleDbCommand cmd = new OleDbCommand(Members_sCountSQL, Utility.Connection))
+    {
+        if (hasParam)
+        {
+            string likeParam = "%" + nameParam + "%";
+
+            cmd.Parameters.AddWithValue("@p1", likeParam);
+            cmd.Parameters.AddWithValue("@p2", likeParam);
+            cmd.Parameters.AddWithValue("@p3", likeParam);
+        }
+
+        totalRecords = Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    Members_Pager.MaxPage =
+        (totalRecords % Members_PAGENUM) > 0
+        ? (totalRecords / Members_PAGENUM) + 1
+        : (totalRecords / Members_PAGENUM);
+
+    bool AllowScroller = Members_Pager.MaxPage > 1;
+
+    DataView source = new DataView(ds.Tables["Members"]);
+    return source;
 }
 
         protected void Members_pager_navigate_completed(Object Src, int CurrPage)
