@@ -48,22 +48,23 @@ namespace Book_Store
         }
 
         protected void Page_Show(object sender, EventArgs e)
-        {
-            Search_Show();
-            AdvMenu_Show();
-            Recommended_Bind();
-            What_Bind();
-            Categories_Bind();
-            New_Bind();
-            Weekly_Bind();
-            Specials_Bind();
-        }
+            {
+                Search_Show();
+                AdvMenu_Show();
+                Recommended_Bind();
+                What_Bind();
+                Categories_Bind();
+                New_Bind();
+                Weekly_Bind();
+                Specials_Bind();
+            }
 
         // HTML Encode query string parameters and any user-generated content
+        
         void Search_Show()
         {
             Utility.buildListBox(Search_category_id.Items, "select category_id,name from categories order by 2", "category_id", "name", "All", "");
-
+        
             string s;
             s = Utility.GetParam("category_id");
             try
@@ -71,31 +72,40 @@ namespace Book_Store
                 Search_category_id.SelectedIndex = Search_category_id.Items.IndexOf(Search_category_id.Items.FindByValue(s));
             }
             catch { }
-
+        
             s = Utility.GetParam("name");
-            // HTML Encode the name parameter
+            // HTML Encode the name parameter to prevent XSS
             Search_name.Text = HttpUtility.HtmlEncode(s);
         }
 
-        void Search_search_Click(Object Src, EventArgs E)
-        {
-            string sURL = Search_FormAction + "category_id=" + Search_category_id.SelectedItem.Value + "&"
-                        + "name=" + HttpUtility.UrlEncode(Search_name.Text); // Use UrlEncode to prevent any illegal characters in URL
-            Response.Redirect(sURL);
-        }
+     void Search_search_Click(Object Src, EventArgs E)
+     {
+     
+    // Use UrlEncode to ensure query parameters are safe
+    string sURL = Search_FormAction + "category_id=" + HttpUtility.UrlEncode(Search_category_id.SelectedItem.Value) + "&"
+                + "name=" + HttpUtility.UrlEncode(Search_name.Text);
+    Response.Redirect(sURL);
+    
+     }
 
         // Bind data for the Recommended section
-        public void Recommended_Repeater_ItemDataBound(Object Sender, RepeaterItemEventArgs e)
-        {
-            if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
-            {
-                string itemName = ((DataRowView)e.Item.DataItem)["i_name"].ToString();
-                string itemImageUrl = ((DataRowView)e.Item.DataItem)["i_image_url"].ToString();
+      public void Recommended_Repeater_ItemDataBound(Object Sender, RepeaterItemEventArgs e)
+   {
+    if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
+    {
+        string itemName = ((DataRowView)e.Item.DataItem)["i_name"].ToString();
+        string itemImageUrl = ((DataRowView)e.Item.DataItem)["i_image_url"].ToString();
 
-                // Encode both the name and image URL to avoid XSS
-                ((HyperLink)e.Item.FindControl("Recommended_name")).Text = "<img border=\"0\" src=\"" + HttpUtility.HtmlEncode(itemImageUrl) + "\"></td><td valign=\"top\"><table width=\"100%\" style=\"width:100%\"><tr><td style=\"background-color: #FFFFFF; border-style: inset; border-width: 0\"><font style=\"font-size: 10pt; color: #CE7E00; font-weight: bold\"><b>" + HttpUtility.HtmlEncode(itemName) + "</b>";
-            }
-        }
+        // HTML encode both name and image URL to prevent XSS
+        HyperLink recommendedLink = (HyperLink)e.Item.FindControl("Recommended_name");
+
+        // If you need to inject HTML (like <img> tags), use a Literal control instead and encode dynamic parts
+        recommendedLink.Text = "<img border=\"0\" src=\"" + HttpUtility.HtmlEncode(itemImageUrl) + "\">"
+                             + "<table width=\"100%\" style=\"width:100%\"><tr><td style=\"background-color: #FFFFFF; border-style: inset; border-width: 0\">"
+                             + "<font style=\"font-size: 10pt; color: #CE7E00; font-weight: bold\">"
+                             + "<b>" + HttpUtility.HtmlEncode(itemName) + "</b>";
+    }
+  }
 
         // Create and bind data for Recommended section
         ICollection Recommended_CreateDataSource()
