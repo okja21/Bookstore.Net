@@ -80,73 +80,73 @@ namespace Book_Store
             }
         }
 
-        void Login_login_Click(Object Src, EventArgs E)
+void Login_login_Click(Object Src, EventArgs E)
+{
+    if (Login_logged)
+    {
+        // Logout
+        Login_logged = false;
+        Session["UserID"] = 0;
+        Session["UserRights"] = 0;
+        Login_Show();
+    }
+    else
+    {
+        string loginName = Login_name.Text;
+        string password = Login_password.Text; // plaintext input
+
+        try
         {
-            if (Login_logged)
+            // --- Check if user exists using parameterized query ---
+            int userExists = Convert.ToInt32(
+                Utility.DlookupSafe("members", "count(*)", "member_login", loginName)
+            );
+
+            if (userExists > 0)
             {
-                // Logout
-                Login_logged = false;
-                Session["UserID"] = 0;
-                Session["UserRights"] = 0;
-                Login_Show();
+                // --- Fetch hashed password from DB ---
+                string dbPasswordHash = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
+
+                // Compute hash of entered password using the same algorithm as stored
+                string passwordHash = CCUtility.ComputeHash(password);
+
+                // Compare securely
+                if (!string.Equals(dbPasswordHash, passwordHash, StringComparison.Ordinal))
+                    userExists = 0;
+
+                // Clear sensitive variables
+                dbPasswordHash = null;
+                passwordHash = null;
+            }
+
+            if (userExists > 0)
+            {
+                Login_message.Visible = false;
+
+                Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
+                Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
+
+                string sQueryString = Utility.GetParam("querystring");
+                string sPage = Utility.GetParam("ret_page");
+                if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
+                    Response.Redirect(sPage + "?" + sQueryString);
+                else
+                    Response.Redirect(Login_FormAction);
+
+                Login_logged = true;
             }
             else
             {
-                string loginName = Login_name.Text;
-                string password = Login_password.Text; // plaintext input
-
-                try
-                {
-                    int iPassed = Convert.ToInt32(
-                        Utility.DlookupSafe("members", "count(*)", "member_login", loginName)
-                    );
-
-                    if (iPassed > 0)
-                    {
-                        // Fetch hashed password from DB
-                        string dbPasswordHash = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
-
-                        // Compute hash of entered password
-                        string passwordHash = CCUtility.ComputeHash(password);
-
-                        // Compare hashes
-                        if (dbPasswordHash != passwordHash)
-                            iPassed = 0;
-
-                        // Clear sensitive variables
-                        dbPasswordHash = null;
-                        passwordHash = null;
-                    }
-
-                    if (iPassed > 0)
-                    {
-                        Login_message.Visible = false;
-
-                        Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
-                        Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
-
-                        string sQueryString = Utility.GetParam("querystring");
-                        string sPage = Utility.GetParam("ret_page");
-                        if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
-                            Response.Redirect(sPage + "?" + sQueryString);
-                        else
-                            Response.Redirect(Login_FormAction);
-
-                        Login_logged = true;
-                    }
-                    else
-                    {
-                        Login_message.Visible = true;
-                    }
-                }
-                finally
-                {
-                    // Clear plaintext password immediately
-                    password = null;
-                }
+                Login_message.Visible = true;
             }
         }
+        finally
+        {
+            // Clear plaintext password immediately
+            password = null;
+        }
     }
+}
 
     //===============================
     public partial class CCUtility
