@@ -89,23 +89,26 @@ namespace Book_Store
      }
 
         // Bind data for the Recommended section
-      public void Recommended_Repeater_ItemDataBound(Object Sender, RepeaterItemEventArgs e)
-   {
-    if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
-    {
-        string itemName = ((DataRowView)e.Item.DataItem)["i_name"].ToString();
-        string itemImageUrl = ((DataRowView)e.Item.DataItem)["i_image_url"].ToString();
-
-        // HTML encode both name and image URL to prevent XSS
-        HyperLink recommendedLink = (HyperLink)e.Item.FindControl("Recommended_name");
-
-        // If you need to inject HTML (like <img> tags), use a Literal control instead and encode dynamic parts
-        recommendedLink.Text = "<img border=\"0\" src=\"" + HttpUtility.HtmlEncode(itemImageUrl) + "\">"
-                             + "<table width=\"100%\" style=\"width:100%\"><tr><td style=\"background-color: #FFFFFF; border-style: inset; border-width: 0\">"
-                             + "<font style=\"font-size: 10pt; color: #CE7E00; font-weight: bold\">"
-                             + "<b>" + HttpUtility.HtmlEncode(itemName) + "</b>";
-    }
-  }
+     public void Recommended_Repeater_ItemDataBound(Object Sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType == ListItemType.Item || e.Item.ItemType == ListItemType.AlternatingItem)
+            {
+                string itemName = ((DataRowView)e.Item.DataItem)["i_name"].ToString();
+                string itemImageUrl = ((DataRowView)e.Item.DataItem)["i_image_url"].ToString();
+        
+                // Find the Literal control in your Repeater template
+                Literal recommendedLiteral = (Literal)e.Item.FindControl("Recommended_Literal");
+        
+                // Build safe HTML using encoded values
+                string safeHtml = "<img border=\"0\" src=\"" + HttpUtility.HtmlEncode(itemImageUrl) + "\" />" +
+                                  "<table width=\"100%\" style=\"width:100%\"><tr><td style=\"background-color: #FFFFFF; border-style: inset; border-width: 0\">" +
+                                  "<font style=\"font-size: 10pt; color: #CE7E00; font-weight: bold\">" +
+                                  "<b>" + HttpUtility.HtmlEncode(itemName) + "</b></font></td></tr></table>";
+        
+                // Assign to Literal control
+                recommendedLiteral.Text = safeHtml;
+            }
+        }
 
         // Create and bind data for Recommended section
         ICollection Recommended_CreateDataSource()
