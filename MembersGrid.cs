@@ -141,7 +141,7 @@ namespace Book_Store
             }
         }
 
-        ICollection Members_CreateDataSource()
+         ICollection Members_CreateDataSource()
         {
 
             Members_sSQL = "";
@@ -198,47 +198,40 @@ namespace Book_Store
                 if (iTmpI > 1)
                     Members_sCountSQL = Members_sCountSQL.Substring(0, iTmpI);
             }
+            
+    OleDbDataAdapter command = new OleDbDataAdapter(Members_sSQL, Utility.Connection);
+    DataSet ds = new DataSet();
 
-            OleDbDataAdapter command =
-                new OleDbDataAdapter(Members_sSQL, Utility.Connection);
+    command.Fill(
+        ds,
+        (i_Members_curpage - 1) * Members_PAGENUM,
+        Members_PAGENUM,
+        "Members"
+    );
 
-            DataSet ds = new DataSet();
+    // Sanitize data for Stored XSS ---
+    foreach (DataRow row in ds.Tables["Members"].Rows)
+    {
+        // Encode any field that might contain user-generated scripts
+        row["m_first_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_first_name"].ToString());
+        row["m_last_name"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_last_name"].ToString());
+        row["m_member_login"] = Microsoft.Security.Application.Encoder.HtmlEncode(row["m_member_login"].ToString());
+    }
 
-            command.Fill(
-                ds,
-                (i_Members_curpage - 1) * Members_PAGENUM,
-                Members_PAGENUM,
-                "Members"
-            );
+    OleDbCommand ccommand = new OleDbCommand(Members_sCountSQL, Utility.Connection);
+    int PageTemp = (int)ccommand.ExecuteScalar();
 
-            OleDbCommand ccommand =
-                new OleDbCommand(Members_sCountSQL, Utility.Connection);
-
-            int PageTemp = (int)ccommand.ExecuteScalar();
-
-            Members_Pager.MaxPage =
+  Members_Pager.MaxPage =
                 (PageTemp % Members_PAGENUM) > 0
                 ? (PageTemp / Members_PAGENUM) + 1
                 : (PageTemp / Members_PAGENUM);
 
             bool AllowScroller = Members_Pager.MaxPage > 1;
 
-            DataView Source = new DataView(ds.Tables[0]);
 
-            if (ds.Tables[0].Rows.Count == 0)
-            {
-                Members_no_records.Visible = true;
-                AllowScroller = false;
-            }
-            else
-            {
-                Members_no_records.Visible = false;
-            }
-
-            Members_Pager.Visible = AllowScroller;
-
-            return Source;
-        }
+    DataView Source = new DataView(ds.Tables[0]);
+    return Source;
+}
 
         protected void Members_pager_navigate_completed(Object Src, int CurrPage)
         {
