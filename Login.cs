@@ -92,8 +92,8 @@ void Login_login_Click(Object Src, EventArgs E)
     }
     else
     {
-        string loginName = Login_name.Text;
-        string password = Login_password.Text; // plaintext input
+        string loginName = Login_name.Text?.Trim();
+        string password = Login_password.Text; // plaintext input from user
 
         try
         {
@@ -104,31 +104,40 @@ void Login_login_Click(Object Src, EventArgs E)
 
             if (userExists > 0)
             {
-                // --- Fetch hashed password from DB ---
-                string dbPasswordHash = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
+                // --- Fetch stored password hash securely ---
+                string storedHash = Utility.DlookupSafe("members", "member_password", "member_login", loginName);
 
-                // Compute hash of entered password using the same algorithm as stored
-                string passwordHash = CCUtility.ComputeHash(password);
+                if (!string.IsNullOrEmpty(storedHash))
+                {
+                    // --- Compute hash of entered password ---
+                    string enteredHash = CCUtility.ComputeHash(password);
 
-                // Compare securely
-                if (!string.Equals(dbPasswordHash, passwordHash, StringComparison.Ordinal))
+                    // --- Compare hashes safely ---
+                    if (!string.Equals(storedHash, enteredHash, StringComparison.Ordinal))
+                        userExists = 0;
+
+                    // --- Clear sensitive data immediately ---
+                    storedHash = null;
+                    enteredHash = null;
+                }
+                else
+                {
                     userExists = 0;
-
-                // Clear sensitive variables
-                dbPasswordHash = null;
-                passwordHash = null;
+                }
             }
 
             if (userExists > 0)
             {
                 Login_message.Visible = false;
 
+                // --- Fetch user ID and rights securely ---
                 Session["UserID"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_id", "member_login", loginName));
                 Session["UserRights"] = Convert.ToInt32(Utility.DlookupSafe("members", "member_level", "member_login", loginName));
 
+                // --- Safe redirect with parameter validation ---
                 string sQueryString = Utility.GetParam("querystring");
                 string sPage = Utility.GetParam("ret_page");
-                if (!sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]) && sPage.Length > 0)
+                if (!string.IsNullOrEmpty(sPage) && !sPage.Equals(Request.ServerVariables["SCRIPT_NAME"]))
                     Response.Redirect(sPage + "?" + sQueryString);
                 else
                     Response.Redirect(Login_FormAction);
@@ -142,12 +151,11 @@ void Login_login_Click(Object Src, EventArgs E)
         }
         finally
         {
-            // Clear plaintext password immediately
+            // --- Clear plaintext password immediately ---
             password = null;
         }
     }
 }
-
     //===============================
     public partial class CCUtility
     {
